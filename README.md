@@ -74,6 +74,10 @@ pnpm seed
 
 # Opção 2: Deploy (recomendado - faz tudo em um comando)
 pnpm deploy
+
+# Opção 3: Com nix pack (usa script 'start')
+pnpm build
+pnpm start
 ```
 
 ## ⚙️ Configuração
@@ -120,6 +124,7 @@ BATCH_SIZE=1000
 ### ⚠️ Importante: Build vs Execução
 
 - `pnpm build` - **Apenas compila** o TypeScript para JavaScript (não executa migrações)
+- `pnpm start` - **Executa** seed de todas as migrações (requer build prévio, usado por nix pack)
 - `pnpm seed` ou `pnpm sync` - **Executa** as migrações (requer build prévio)
 - `pnpm deploy` - **Compila E executa** seed (recomendado para servidor)
 

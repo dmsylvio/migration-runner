@@ -4,6 +4,7 @@
    "description": "",
    "main": "index.js",
    "scripts": {
+      "start": "node dist/cli.js seed --all",
       "dev:cli": "tsx src/cli.ts",
       "build": "tsc -p tsconfig.json",
       "cli": "node dist/cli.js",
