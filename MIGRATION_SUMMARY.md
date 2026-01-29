@@ -1,86 +1,86 @@
-# Resumo da Migração - Tabelas e Relações
+# Migration Summary - Tables and Relationships
 
-## 📊 Estatísticas
+## 📊 Statistics
 
-- **Total de tabelas no banco antigo**: ~35 tabelas
-- **Total de tabelas no banco novo**: 24 tabelas
-- **Tabelas que serão migradas**: 23 tabelas
-- **Tabelas sem correspondência**: 11 tabelas
-
----
-
-## 🔄 Mapeamento Rápido de Tabelas
-
-| #   | Tabela Nova                         | Tabela Antiga                | Status    | Observações                                                                                |
-| --- | ----------------------------------- | ---------------------------- | --------- | ------------------------------------------------------------------------------------------ |
-| 1   | `users`                             | `tb_usuario`                 | ✅ Migrar | Converter `co_seq_usuario` para UUID                                                       |
-| 2   | `company`                           | `tb_empresa`                 | ✅ Migrar | Converter `user_id` (int) para UUID                                                        |
-| 3   | `institutions`                      | `tb_instituicao`             | ✅ Migrar | Converter `user_id` (int) para UUID                                                        |
-| 4   | `student`                           | `tb_estudante`               | ✅ Migrar | Gerar novo UUID, converter todas FKs                                                       |
-| 5   | `state`                             | `tb_estados`                 | ✅ Migrar | Gerar novo UUID                                                                            |
-| 6   | `course`                            | `tb_confcurso`               | ✅ Migrar | Gerar novo UUID                                                                            |
-| 7   | `semester`                          | `tb_semestre`                | ✅ Migrar | Gerar novo UUID                                                                            |
-| 8   | `gender`                            | `tb_sexo`                    | ✅ Migrar | Gerar novo UUID                                                                            |
-| 9   | `marital_status`                    | `tb_estado_civil`            | ✅ Migrar | Gerar novo UUID                                                                            |
-| 10  | `education_level`                   | `tb_escolaridade`            | ✅ Migrar | Gerar novo UUID                                                                            |
-| 11  | `educational_institution`           | `tb_confinstituicao`         | ✅ Migrar | Gerar novo UUID                                                                            |
-| 12  | `shift`                             | `tb_turno`                   | ✅ Migrar | Gerar novo UUID                                                                            |
-| 13  | `company_representative`            | `representante_empresas`     | ✅ Migrar | Gerar novo UUID                                                                            |
-| 14  | `company_supervisor`                | `supervisor_empresas`        | ✅ Migrar | Gerar novo UUID                                                                            |
-| 15  | `institution_representative`        | `representante_instituicaos` | ✅ Migrar | Gerar novo UUID                                                                            |
-| 16  | `institution_supervisor`            | `supervisor_instituicaos`    | ✅ Migrar | Gerar novo UUID                                                                            |
-| 17  | `intern_requests`                   | `solicitar_estagiarios`      | ✅ Migrar | Gerar novo UUID, mapear enums                                                              |
-| 18  | `internship_agreement_requests`     | `solicitar_termos`           | ✅ Migrar | Gerar novo UUID, buscar FKs por nome                                                       |
-| 19  | `internship_commitment_term`        | `tb_termo` + `termos`        | ✅ Migrar | Usar `tb_termo` como principal                                                             |
-| 20  | `internship_termination_requests`   | `solicitar_rescisao_termos`  | ✅ Migrar | Gerar novo UUID, mapear enums                                                              |
-| 21  | `opportunity`                       | `tb_vaga` + `vagas`          | ✅ Migrar | `tb_vaga` era antiga, `vagas` foi criada extraindo dados dela. Usar `vagas` como principal |
-| 22  | `signed_internship_commitment_term` | `tce_docs`                   | ✅ Migrar | Gerar novo UUID, converter FKs                                                             |
-| 23  | `refresh_tokens`                    | -                            | ⚠️ Nova   | Não há dados antigos                                                                       |
+- **Total tables in old database**: ~35 tables
+- **Total tables in new database**: 24 tables
+- **Tables to be migrated**: 23 tables
+- **Tables without correspondence**: 11 tables
 
 ---
 
-## ❌ Tabelas Não Migradas (Sem Correspondência)
+## 🔄 Quick Table Mapping
 
-| Tabela Antiga               | Motivo                                                                  |
-| --------------------------- | ----------------------------------------------------------------------- |
-| `prorrogacao_de_contrato`   | Não existe no novo banco                                                |
-| `recibo_pagamento_bolsa`    | Não existe no novo banco                                                |
-| `recibo_recesso_remunerado` | Não existe no novo banco                                                |
-| `tb_categoria`              | Não existe no novo banco                                                |
-| `tb_cursoinfnew`            | Não existe no novo banco                                                |
-| `tb_dados_financeiros`      | Não existe no novo banco                                                |
-| `tb_depoimento`             | Não existe no novo banco                                                |
-| `tb_experprofis`            | Não existe no novo banco                                                |
-| `tb_noticia`                | Não existe no novo banco                                                |
-| `tb_representante`          | Substituído por `company_representative` e `institution_representative` |
-| `tb_supervisor`             | Substituído por `company_supervisor` e `institution_supervisor`         |
-| `termo_realizacao_estagios` | Não existe no novo banco                                                |
+| #   | New Table                           | Old Table                    | Status     | Notes                                                                                  |
+| --- | ----------------------------------- | ---------------------------- | ---------- | -------------------------------------------------------------------------------------- |
+| 1   | `users`                             | `tb_usuario`                 | ✅ Migrate | Convert `co_seq_usuario` to UUID                                                       |
+| 2   | `company`                           | `tb_empresa`                 | ✅ Migrate | Convert `user_id` (int) to UUID                                                        |
+| 3   | `institutions`                      | `tb_instituicao`             | ✅ Migrate | Convert `user_id` (int) to UUID                                                        |
+| 4   | `student`                           | `tb_estudante`               | ✅ Migrate | Generate new UUID, convert all FKs                                                     |
+| 5   | `state`                             | `tb_estados`                 | ✅ Migrate | Generate new UUID                                                                      |
+| 6   | `course`                            | `tb_confcurso`               | ✅ Migrate | Generate new UUID                                                                      |
+| 7   | `semester`                          | `tb_semestre`                | ✅ Migrate | Generate new UUID                                                                      |
+| 8   | `gender`                            | `tb_sexo`                    | ✅ Migrate | Generate new UUID                                                                      |
+| 9   | `marital_status`                    | `tb_estado_civil`            | ✅ Migrate | Generate new UUID                                                                      |
+| 10  | `education_level`                   | `tb_escolaridade`            | ✅ Migrate | Generate new UUID                                                                      |
+| 11  | `educational_institution`           | `tb_confinstituicao`         | ✅ Migrate | Generate new UUID                                                                      |
+| 12  | `shift`                             | `tb_turno`                   | ✅ Migrate | Generate new UUID                                                                      |
+| 13  | `company_representative`            | `representante_empresas`     | ✅ Migrate | Generate new UUID                                                                      |
+| 14  | `company_supervisor`                | `supervisor_empresas`        | ✅ Migrate | Generate new UUID                                                                      |
+| 15  | `institution_representative`        | `representante_instituicaos` | ✅ Migrate | Generate new UUID                                                                      |
+| 16  | `institution_supervisor`            | `supervisor_instituicaos`    | ✅ Migrate | Generate new UUID                                                                      |
+| 17  | `intern_requests`                   | `solicitar_estagiarios`      | ✅ Migrate | Generate new UUID, map enums                                                           |
+| 18  | `internship_agreement_requests`     | `solicitar_termos`           | ✅ Migrate | Generate new UUID, find FKs by name                                                    |
+| 19  | `internship_commitment_term`        | `tb_termo` + `termos`        | ✅ Migrate | Use `tb_termo` as main                                                                 |
+| 20  | `internship_termination_requests`   | `solicitar_rescisao_termos`  | ✅ Migrate | Generate new UUID, map enums                                                           |
+| 21  | `opportunity`                       | `tb_vaga` + `vagas`          | ✅ Migrate | `tb_vaga` was old, `vagas` was created by extracting data from it. Use `vagas` as main |
+| 22  | `signed_internship_commitment_term` | `tce_docs`                   | ✅ Migrate | Generate new UUID, convert FKs                                                         |
+| 23  | `refresh_tokens`                    | -                            | ⚠️ New     | No old data                                                                            |
 
 ---
 
-## 🔑 Principais Conversões Necessárias
+## ❌ Tables Not Migrated (No Correspondence)
 
-### 1. IDs Sequenciais → UUIDs
+| Old Table                   | Reason                                                                |
+| --------------------------- | --------------------------------------------------------------------- |
+| `prorrogacao_de_contrato`   | Doesn't exist in new database                                         |
+| `recibo_pagamento_bolsa`    | Doesn't exist in new database                                         |
+| `recibo_recesso_remunerado` | Doesn't exist in new database                                         |
+| `tb_categoria`              | Doesn't exist in new database                                         |
+| `tb_cursoinfnew`            | Doesn't exist in new database                                         |
+| `tb_dados_financeiros`      | Doesn't exist in new database                                         |
+| `tb_depoimento`             | Doesn't exist in new database                                         |
+| `tb_experprofis`            | Doesn't exist in new database                                         |
+| `tb_noticia`                | Doesn't exist in new database                                         |
+| `tb_representante`          | Replaced by `company_representative` and `institution_representative` |
+| `tb_supervisor`             | Replaced by `company_supervisor` and `institution_supervisor`         |
+| `termo_realizacao_estagios` | Doesn't exist in new database                                         |
+
+---
+
+## 🔑 Main Required Conversions
+
+### 1. Sequential IDs → UUIDs
 
 - `co_seq_*` (int) → `id` (text/UUID)
-- Manter ID antigo em `old_id`
+- Keep old ID in `old_id`
 
 ### 2. Foreign Keys (int → UUID)
 
-- `user_id` (int) → UUID de `users`
-- `estado_id` (int) → UUID de `state`
-- `curso_id` (int) → UUID de `course`
-- `semestre_id` (int) → UUID de `semester`
-- `genero` (enum) → UUID de `gender`
-- `estado_civil_id` (int) → UUID de `marital_status`
-- `nivel_escolaridade_id` (int) → UUID de `education_level`
-- `instituicao_id` (int) → UUID de `educational_institution`
-- `turno_id` (int) → UUID de `shift`
-- `estudante_id` (int) → UUID de `student`
-- `empresa_id` (int) → UUID de `company` (quando for int)
-- `instituicao_id` (int) → UUID de `institutions` (quando for int)
+- `user_id` (int) → UUID from `users`
+- `estado_id` (int) → UUID from `state`
+- `curso_id` (int) → UUID from `course`
+- `semestre_id` (int) → UUID from `semester`
+- `genero` (enum) → UUID from `gender`
+- `estado_civil_id` (int) → UUID from `marital_status`
+- `nivel_escolaridade_id` (int) → UUID from `education_level`
+- `instituicao_id` (int) → UUID from `educational_institution`
+- `turno_id` (int) → UUID from `shift`
+- `estudante_id` (int) → UUID from `student`
+- `empresa_id` (int) → UUID from `company` (when it's int)
+- `instituicao_id` (int) → UUID from `institutions` (when it's int)
 
-### 3. Mapeamento de Enums
+### 3. Enum Mapping
 
 #### Role (users)
 
@@ -89,7 +89,7 @@
 'company' → 'company'
 'institution' → 'institution'
 'admin' → 'admin'
-'undefined' → ? (decidir tratamento)
+'undefined' → ? (decide treatment)
 ```
 
 #### Status (intern_requests)
@@ -156,9 +156,9 @@
 
 ---
 
-## 📋 Ordem de Migração Recomendada
+## 📋 Recommended Migration Order
 
-### Fase 1: Tabelas de Referência (Sem Dependências)
+### Phase 1: Reference Tables (No Dependencies)
 
 1. `state`
 2. `gender`
@@ -169,60 +169,60 @@
 7. `shift`
 8. `educational_institution`
 
-### Fase 2: Usuários
+### Phase 2: Users
 
 9. `users`
 
-### Fase 3: Entidades Principais
+### Phase 3: Main Entities
 
 10. `company`
 11. `institutions`
 12. `student`
 
-### Fase 4: Representantes e Supervisores
+### Phase 4: Representatives and Supervisors
 
 13. `company_representative`
 14. `company_supervisor`
 15. `institution_representative`
 16. `institution_supervisor`
 
-### Fase 5: Solicitações
+### Phase 5: Requests
 
 17. `intern_requests`
 18. `internship_agreement_requests`
 
-### Fase 6: Termos
+### Phase 6: Terms
 
 19. `internship_commitment_term`
 20. `internship_termination_requests`
 21. `signed_internship_commitment_term`
 
-### Fase 7: Oportunidades
+### Phase 7: Opportunities
 
 22. `opportunity`
 
-### Fase 8: Autenticação
+### Phase 8: Authentication
 
-23. `refresh_tokens` (nova, sem dados)
+23. `refresh_tokens` (new, no data)
 
 ---
 
-## ⚠️ Pontos de Atenção
+## ⚠️ Points of Attention
 
-1. **Conversão de user_id**: Muitas tabelas têm `user_id` como `int(11)`, precisa buscar o UUID correspondente em `users.old_id`
+1. **user_id Conversion**: Many tables have `user_id` as `int(11)`, need to find the corresponding UUID in `users.old_id`
 
-2. **Busca por Nome**: Algumas FKs no banco antigo são texto (nome), precisam ser buscadas:
-   - `solicitar_termos.curso` → buscar em `course.name`
-   - `solicitar_termos.semestre` → buscar em `semester.name`
-   - `vagas.curso` → buscar em `course.name`
-   - `vagas.semestre` → buscar em `semester.name`
-   - `vagas.sexo` → buscar em `gender.name`
-   - `vagas.supervisor` → buscar em `company_supervisor.full_name`
+2. **Search by Name**: Some FKs in old database are text (name), need to be searched:
+   - `solicitar_termos.curso` → search in `course.name`
+   - `solicitar_termos.semestre` → search in `semester.name`
+   - `vagas.curso` → search in `course.name`
+   - `vagas.semestre` → search in `semester.name`
+   - `vagas.sexo` → search in `gender.name`
+   - `vagas.supervisor` → search in `company_supervisor.full_name`
 
-3. **Cálculos Necessários**:
-   - `internship_agreement_requests.proposed_end_date` = `data_inicio_estagio` + `vigencia_estagio` meses
+3. **Required Calculations**:
+   - `internship_agreement_requests.proposed_end_date` = `data_inicio_estagio` + `vigencia_estagio` months
 
-4. **Campos Opcionais**: Alguns campos não existem no banco antigo e podem ser NULL:
+4. **Optional Fields**: Some fields don't exist in old database and can be NULL:
    - `company.whatsapp`
    - `institutions.whatsapp`
    - `intern_requests.other_benefits`
@@ -231,25 +231,25 @@
    - `opportunity.application_instructions`
    - `signed_internship_commitment_term.public_id`
 
-5. **Formatação de Dados**:
-   - CPF: Remover formatação (pontos e traços)
-   - CEP: Ajustar formato
-   - Telefone: Padronizar formato
-   - Decimal → Text: Converter `decimal(10,2)` para `text` em alguns campos
+5. **Data Formatting**:
+   - CPF: Remove formatting (dots and dashes)
+   - ZIP Code: Adjust format
+   - Phone: Standardize format
+   - Decimal → Text: Convert `decimal(10,2)` to `text` in some fields
 
 ---
 
-## 📝 Checklist de Migração
+## 📝 Migration Checklist
 
-- [ ] Criar mapeamento de IDs antigos → novos UUIDs para cada tabela
-- [ ] Migrar tabelas de referência (Fase 1)
-- [ ] Migrar usuários (Fase 2)
-- [ ] Migrar entidades principais (Fase 3)
-- [ ] Migrar representantes e supervisores (Fase 4)
-- [ ] Migrar solicitações (Fase 5)
-- [ ] Migrar termos (Fase 6)
-- [ ] Migrar oportunidades (Fase 7)
-- [ ] Migrar tokens de autenticação (Fase 8)
-- [ ] Validar integridade referencial
-- [ ] Validar contagem de registros
-- [ ] Testar consultas principais
+- [ ] Create mapping of old IDs → new UUIDs for each table
+- [ ] Migrate reference tables (Phase 1)
+- [ ] Migrate users (Phase 2)
+- [ ] Migrate main entities (Phase 3)
+- [ ] Migrate representatives and supervisors (Phase 4)
+- [ ] Migrate requests (Phase 5)
+- [ ] Migrate terms (Phase 6)
+- [ ] Migrate opportunities (Phase 7)
+- [ ] Migrate authentication tokens (Phase 8)
+- [ ] Validate referential integrity
+- [ ] Validate record counts
+- [ ] Test main queries
