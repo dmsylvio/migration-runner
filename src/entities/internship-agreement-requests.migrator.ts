@@ -134,15 +134,31 @@ async function getCourseIdFromName(courseName: string): Promise<string | null> {
     return courseNameCache.get(courseName) || null;
   }
 
-  const res = await postgres.query(
+  // Tentar buscar por nome primeiro
+  const resByName = await postgres.query(
     `SELECT id FROM course WHERE name = $1 LIMIT 1`,
     [courseName.trim()],
   );
 
-  if (res.rows && res.rows.length > 0) {
-    const courseId = (res.rows[0] as { id: string }).id;
+  if (resByName.rows && resByName.rows.length > 0) {
+    const courseId = (resByName.rows[0] as { id: string }).id;
     courseNameCache.set(courseName, courseId);
     return courseId;
+  }
+
+  // Se não encontrou por nome e o valor é numérico, tentar buscar por old_id
+  const numericValue = parseInt(courseName.trim(), 10);
+  if (!isNaN(numericValue)) {
+    const resByOldId = await postgres.query(
+      `SELECT id FROM course WHERE old_id = $1 LIMIT 1`,
+      [String(numericValue)],
+    );
+
+    if (resByOldId.rows && resByOldId.rows.length > 0) {
+      const courseId = (resByOldId.rows[0] as { id: string }).id;
+      courseNameCache.set(courseName, courseId);
+      return courseId;
+    }
   }
 
   return null;
@@ -155,15 +171,31 @@ async function getSemesterIdFromName(
     return semesterNameCache.get(semesterName) || null;
   }
 
-  const res = await postgres.query(
+  // Tentar buscar por nome primeiro
+  const resByName = await postgres.query(
     `SELECT id FROM semester WHERE name = $1 LIMIT 1`,
     [semesterName.trim()],
   );
 
-  if (res.rows && res.rows.length > 0) {
-    const semesterId = (res.rows[0] as { id: string }).id;
+  if (resByName.rows && resByName.rows.length > 0) {
+    const semesterId = (resByName.rows[0] as { id: string }).id;
     semesterNameCache.set(semesterName, semesterId);
     return semesterId;
+  }
+
+  // Se não encontrou por nome e o valor é numérico, tentar buscar por old_id
+  const numericValue = parseInt(semesterName.trim(), 10);
+  if (!isNaN(numericValue)) {
+    const resByOldId = await postgres.query(
+      `SELECT id FROM semester WHERE old_id = $1 LIMIT 1`,
+      [String(numericValue)],
+    );
+
+    if (resByOldId.rows && resByOldId.rows.length > 0) {
+      const semesterId = (resByOldId.rows[0] as { id: string }).id;
+      semesterNameCache.set(semesterName, semesterId);
+      return semesterId;
+    }
   }
 
   return null;
@@ -201,24 +233,61 @@ async function upsertInternshipAgreementRequest(
     );
   }
 
-  const companyRepresentativeId = await getCompanyRepresentativeIdByName(
+  // company_representative_id é NOT NULL, então precisamos garantir um valor
+  let companyRepresentativeId: string;
+  const foundRepresentativeId = await getCompanyRepresentativeIdByName(
     companyId,
     row.representante_empresa,
   );
-  if (!companyRepresentativeId) {
-    throw new Error(
-      `Company representative not found for name: ${row.representante_empresa} in company ${companyId} (internship_agreement_request: ${oldId})`,
+  if (!foundRepresentativeId) {
+    // Buscar primeiro representante da empresa como fallback
+    const defaultRepresentativeRes = await postgres.query(
+      `SELECT id FROM company_representative WHERE company_id = $1 ORDER BY created_at LIMIT 1`,
+      [companyId],
     );
+    if (
+      !defaultRepresentativeRes.rows ||
+      defaultRepresentativeRes.rows.length === 0
+    ) {
+      throw new Error(
+        `No company representative found for company ${companyId} and name "${row.representante_empresa}" (internship_agreement_request: ${oldId})`,
+      );
+    }
+    companyRepresentativeId = (
+      defaultRepresentativeRes.rows[0] as { id: string }
+    ).id;
+    logger.warn(
+      { entity: ENTITY, requestId: oldId },
+      `Representative not found for name: "${row.representante_empresa}", using first representative: ${companyRepresentativeId}`,
+    );
+  } else {
+    companyRepresentativeId = foundRepresentativeId;
   }
 
-  const companySupervisorId = await getCompanySupervisorIdByName(
+  // company_supervisor_id é NOT NULL, então precisamos garantir um valor
+  let companySupervisorId: string;
+  const foundSupervisorId = await getCompanySupervisorIdByName(
     companyId,
     row.supervisor_empresa,
   );
-  if (!companySupervisorId) {
-    throw new Error(
-      `Company supervisor not found for name: ${row.supervisor_empresa} in company ${companyId} (internship_agreement_request: ${oldId})`,
+  if (!foundSupervisorId) {
+    // Buscar primeiro supervisor da empresa como fallback
+    const defaultSupervisorRes = await postgres.query(
+      `SELECT id FROM company_supervisor WHERE company_id = $1 ORDER BY created_at LIMIT 1`,
+      [companyId],
     );
+    if (!defaultSupervisorRes.rows || defaultSupervisorRes.rows.length === 0) {
+      throw new Error(
+        `No company supervisor found for company ${companyId} and name "${row.supervisor_empresa}" (internship_agreement_request: ${oldId})`,
+      );
+    }
+    companySupervisorId = (defaultSupervisorRes.rows[0] as { id: string }).id;
+    logger.warn(
+      { entity: ENTITY, requestId: oldId },
+      `Supervisor not found for name: "${row.supervisor_empresa}", using first supervisor: ${companySupervisorId}`,
+    );
+  } else {
+    companySupervisorId = foundSupervisorId;
   }
 
   const courseId = await getCourseIdFromName(row.curso);

@@ -79,8 +79,23 @@ async function getCompanyIdFromLegacyUuid(
   return null;
 }
 
-function removeCpfFormatting(cpf: string): string {
-  return cpf.replace(/[.\-]/g, "");
+function removeCpfFormatting(cpf: string): string | null {
+  if (!cpf) return null;
+
+  // Remover todos os caracteres não numéricos
+  const cleaned = cpf.replace(/[^\d]/g, "");
+
+  // Limitar a 11 caracteres (tamanho máximo do campo)
+  if (cleaned.length > 11) {
+    return cleaned.substring(0, 11);
+  }
+
+  // Se ficar vazio após limpeza, retornar null
+  if (cleaned === "" || cleaned === "0") {
+    return null;
+  }
+
+  return cleaned;
 }
 
 async function upsertCompanySupervisor(row: LegacyCompanySupervisorRow) {
@@ -111,7 +126,7 @@ async function upsertCompanySupervisor(row: LegacyCompanySupervisorRow) {
         oldId,
         companyId,
         row.nomeCompleto.trim(),
-        removeCpfFormatting(row.cpf),
+        removeCpfFormatting(row.cpf) || null,
         row.rg?.trim() || null,
         row.orgaoEmissor?.trim() || null,
         row.telefone?.trim() || null,
@@ -141,7 +156,7 @@ async function upsertCompanySupervisor(row: LegacyCompanySupervisorRow) {
         [
           companyId,
           row.nomeCompleto.trim(),
-          removeCpfFormatting(row.cpf),
+          removeCpfFormatting(row.cpf) || null,
           row.rg?.trim() || null,
           row.orgaoEmissor?.trim() || null,
           row.telefone?.trim() || null,

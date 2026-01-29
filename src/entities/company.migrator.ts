@@ -107,6 +107,21 @@ async function upsertCompany(row: LegacyCompanyRow) {
     );
   }
 
+  // Tratar CEP: remover formatação e limitar a 9 caracteres
+  let zipCode = row.nu_cep?.trim() || null;
+  if (zipCode) {
+    // Remover caracteres não numéricos (pontos, hífens, espaços)
+    zipCode = zipCode.replace(/[^\d]/g, "");
+    // Limitar a 9 caracteres (varchar(9) no novo banco)
+    if (zipCode.length > 9) {
+      zipCode = zipCode.substring(0, 9);
+    }
+    // Se ficar vazio após limpeza, usar null
+    if (zipCode === "" || zipCode === "0") {
+      zipCode = null;
+    }
+  }
+
   // Tentar inserir primeiro (mais comum)
   try {
     await postgres.query(
@@ -131,7 +146,7 @@ async function upsertCompany(row: LegacyCompanyRow) {
         row.ds_endereco.trim(),
         row.ds_cidade.trim(),
         stateId,
-        row.nu_cep?.trim() || null,
+        zipCode,
         row.nu_telefone.trim(),
         null, // whatsapp não existe no antigo
         createdAt,
@@ -169,7 +184,7 @@ async function upsertCompany(row: LegacyCompanyRow) {
           row.ds_endereco.trim(),
           row.ds_cidade.trim(),
           stateId,
-          row.nu_cep?.trim() || null,
+          zipCode, // Usar o zipCode já tratado
           row.nu_telefone.trim(),
           updatedAt,
           existingRow.id,

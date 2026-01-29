@@ -344,11 +344,29 @@ async function upsertInternshipCommitmentTerm(row: LegacyTermoRow) {
     );
   }
 
+  // Verificar se o estudante existe no banco antigo primeiro
+  const [studentExists] = await mariadb.query<RowDataPacket[]>(
+    `SELECT id FROM tb_estudante WHERE id = ? LIMIT 1`,
+    [row.estudante_id],
+  );
+
+  if (!studentExists || studentExists.length === 0) {
+    logger.warn(
+      { entity: ENTITY, termId, studentOldId: row.estudante_id },
+      `Student ${row.estudante_id} does not exist in old database, skipping term`,
+    );
+    // Pular este registro - não podemos criar term sem estudante válido
+    return;
+  }
+
   const studentId = await getStudentIdFromOldId(row.estudante_id);
   if (!studentId) {
-    throw new Error(
-      `Student not found for old_id: ${row.estudante_id} (term: ${termId})`,
+    logger.warn(
+      { entity: ENTITY, termId, studentOldId: row.estudante_id },
+      `Student ${row.estudante_id} exists in old DB but not migrated yet, skipping term`,
     );
+    // Pular este registro - estudante ainda não foi migrado
+    return;
   }
 
   // Todos os campos são NOT NULL no schema, então precisamos garantir valores

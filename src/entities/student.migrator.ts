@@ -404,11 +404,26 @@ async function upsertStudent(row: LegacyStudentRow) {
     );
   }
 
-  const genderId = await getGenderIdFromName(row.genero);
-  if (!genderId) {
-    throw new Error(
-      `Gender not found for name: ${row.genero} (student: ${oldId})`,
+  // gender_id é NOT NULL no schema, então precisamos garantir um valor
+  let genderId: string;
+  const foundGenderId = await getGenderIdFromName(row.genero);
+  if (!foundGenderId) {
+    // Buscar primeiro gênero disponível como fallback
+    const defaultGenderRes = await postgres.query(
+      `SELECT id FROM gender ORDER BY name LIMIT 1`,
     );
+    if (!defaultGenderRes.rows || defaultGenderRes.rows.length === 0) {
+      throw new Error(
+        `No gender available and student ${oldId} has invalid gender: ${row.genero}`,
+      );
+    }
+    genderId = (defaultGenderRes.rows[0] as { id: string }).id;
+    logger.warn(
+      { entity: ENTITY, studentId: oldId },
+      `Gender not found for name: ${row.genero}, using default: ${genderId}`,
+    );
+  } else {
+    genderId = foundGenderId;
   }
 
   const availableShiftId = await getShiftIdFromAvailableShiftName(
@@ -418,6 +433,33 @@ async function upsertStudent(row: LegacyStudentRow) {
     throw new Error(
       `Available shift not found for name: ${row.horario_disponivel} (student: ${oldId})`,
     );
+  }
+
+  // Tratar CPF: remover formatação e limitar a 14 caracteres (varchar(14) no schema)
+  let cpfNumber = row.cpf?.trim() || null;
+  if (cpfNumber) {
+    // Remover caracteres não numéricos
+    cpfNumber = cpfNumber.replace(/[^\d]/g, "");
+    // Limitar a 14 caracteres
+    if (cpfNumber.length > 14) {
+      cpfNumber = cpfNumber.substring(0, 14);
+    }
+    // Se ficar vazio após limpeza, usar null
+    if (cpfNumber === "" || cpfNumber === "0") {
+      cpfNumber = null;
+    }
+  }
+
+  // Tratar CEP: remover formatação e limitar a 9 caracteres
+  let zipCode = row.cep?.trim() || null;
+  if (zipCode) {
+    zipCode = zipCode.replace(/[^\d]/g, "");
+    if (zipCode.length > 9) {
+      zipCode = zipCode.substring(0, 9);
+    }
+    if (zipCode === "" || zipCode === "0") {
+      zipCode = null;
+    }
   }
 
   // Tentar inserir primeiro (mais comum)
@@ -442,7 +484,7 @@ async function upsertStudent(row: LegacyStudentRow) {
         row.notas,
         row.nome_completo.trim(),
         row.data_nascimento,
-        row.cpf.trim(),
+        cpfNumber,
         row.rg.trim(),
         row.orgao_expedidor?.trim() || null,
         Boolean(row.possui_cnh),
@@ -455,7 +497,7 @@ async function upsertStudent(row: LegacyStudentRow) {
         row.endereco?.trim() || null,
         row.cidade?.trim() || null,
         stateId,
-        row.cep.trim(),
+        zipCode,
         row.telefone.trim(),
         row.whatsapp?.trim() || null,
         educationLevelId,
@@ -505,7 +547,7 @@ async function upsertStudent(row: LegacyStudentRow) {
           row.notas,
           row.nome_completo.trim(),
           row.data_nascimento,
-          row.cpf.trim(),
+          cpfNumber,
           row.rg.trim(),
           row.orgao_expedidor?.trim() || null,
           Boolean(row.possui_cnh),
@@ -518,7 +560,7 @@ async function upsertStudent(row: LegacyStudentRow) {
           row.endereco?.trim() || null,
           row.cidade?.trim() || null,
           stateId,
-          row.cep.trim(),
+          zipCode,
           row.telefone.trim(),
           row.whatsapp?.trim() || null,
           educationLevelId,

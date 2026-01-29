@@ -118,15 +118,31 @@ async function getCourseIdFromName(courseName: string): Promise<string | null> {
     return courseNameCache.get(courseName) || null;
   }
 
-  const res = await postgres.query(
+  // Tentar buscar por nome primeiro
+  const resByName = await postgres.query(
     `SELECT id FROM course WHERE name = $1 LIMIT 1`,
     [courseName.trim()],
   );
 
-  if (res.rows && res.rows.length > 0) {
-    const courseId = (res.rows[0] as { id: string }).id;
+  if (resByName.rows && resByName.rows.length > 0) {
+    const courseId = (resByName.rows[0] as { id: string }).id;
     courseNameCache.set(courseName, courseId);
     return courseId;
+  }
+
+  // Se não encontrou por nome e o valor é numérico, tentar buscar por old_id
+  const numericValue = parseInt(courseName.trim(), 10);
+  if (!isNaN(numericValue)) {
+    const resByOldId = await postgres.query(
+      `SELECT id FROM course WHERE old_id = $1 LIMIT 1`,
+      [String(numericValue)],
+    );
+
+    if (resByOldId.rows && resByOldId.rows.length > 0) {
+      const courseId = (resByOldId.rows[0] as { id: string }).id;
+      courseNameCache.set(courseName, courseId);
+      return courseId;
+    }
   }
 
   return null;
@@ -139,15 +155,31 @@ async function getSemesterIdFromName(
     return semesterNameCache.get(semesterName) || null;
   }
 
-  const res = await postgres.query(
+  // Tentar buscar por nome primeiro
+  const resByName = await postgres.query(
     `SELECT id FROM semester WHERE name = $1 LIMIT 1`,
     [semesterName.trim()],
   );
 
-  if (res.rows && res.rows.length > 0) {
-    const semesterId = (res.rows[0] as { id: string }).id;
+  if (resByName.rows && resByName.rows.length > 0) {
+    const semesterId = (resByName.rows[0] as { id: string }).id;
     semesterNameCache.set(semesterName, semesterId);
     return semesterId;
+  }
+
+  // Se não encontrou por nome e o valor é numérico, tentar buscar por old_id
+  const numericValue = parseInt(semesterName.trim(), 10);
+  if (!isNaN(numericValue)) {
+    const resByOldId = await postgres.query(
+      `SELECT id FROM semester WHERE old_id = $1 LIMIT 1`,
+      [String(numericValue)],
+    );
+
+    if (resByOldId.rows && resByOldId.rows.length > 0) {
+      const semesterId = (resByOldId.rows[0] as { id: string }).id;
+      semesterNameCache.set(semesterName, semesterId);
+      return semesterId;
+    }
   }
 
   return null;
