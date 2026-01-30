@@ -10,6 +10,37 @@ import { uuidv7 } from "uuidv7";
 
 const ENTITY = "student";
 
+/**
+ * Remove null bytes (0x00) from strings. PostgreSQL does not allow null bytes in UTF8 text.
+ * Returns null for null/undefined; otherwise returns cleaned string.
+ */
+function stripNullBytes(value: string | null | undefined): string | null {
+  if (value == null) return null;
+  const s = typeof value === "string" ? value : String(value);
+  return s.replace(/\u0000/g, "");
+}
+
+/**
+ * Sanitize optional string: strip null bytes, trim, return null if empty.
+ */
+function sanitizeOptionalString(
+  value: string | null | undefined,
+): string | null {
+  const cleaned = stripNullBytes(value);
+  if (cleaned == null) return null;
+  const trimmed = cleaned.trim();
+  return trimmed === "" ? null : trimmed;
+}
+
+/**
+ * Sanitize required string: strip null bytes, trim, fallback to empty string.
+ */
+function sanitizeRequiredString(value: string | null | undefined): string {
+  const cleaned = stripNullBytes(value);
+  if (cleaned == null) return "";
+  return cleaned.trim();
+}
+
 // ✅ Novo schema (Drizzle):
 // student: id(text uuidv7), old_id(text), user_id(text not null), notes, full_name, birth_date, cpf_number,
 // rg_number, issue_agency, has_driver_license, gender_id, marital_status_id, has_disability, disability_type,
@@ -436,7 +467,7 @@ async function upsertStudent(row: LegacyStudentRow) {
   }
 
   // Tratar CPF: remover formatação e limitar a 14 caracteres (varchar(14) no schema)
-  let cpfNumber = row.cpf?.trim() || null;
+  let cpfNumber = stripNullBytes(row.cpf)?.trim() || null;
   if (cpfNumber) {
     // Remover caracteres não numéricos
     cpfNumber = cpfNumber.replace(/[^\d]/g, "");
@@ -451,7 +482,7 @@ async function upsertStudent(row: LegacyStudentRow) {
   }
 
   // Tratar CEP: remover formatação e limitar a 9 caracteres
-  let zipCode = row.cep?.trim() || null;
+  let zipCode = stripNullBytes(row.cep)?.trim() || null;
   if (zipCode) {
     zipCode = zipCode.replace(/[^\d]/g, "");
     if (zipCode.length > 9) {
@@ -481,39 +512,39 @@ async function upsertStudent(row: LegacyStudentRow) {
         uuidv7(),
         oldId,
         userId,
-        row.notas,
-        row.nome_completo.trim(),
+        sanitizeOptionalString(row.notas),
+        sanitizeRequiredString(row.nome_completo),
         row.data_nascimento,
         cpfNumber,
-        row.rg.trim(),
-        row.orgao_expedidor?.trim() || null,
+        sanitizeRequiredString(row.rg),
+        sanitizeOptionalString(row.orgao_expedidor),
         Boolean(row.possui_cnh),
         genderId,
         maritalStatusId,
         Boolean(row.possui_deficiencia),
-        row.tipo_deficiencia?.trim() || null,
-        row.nome_pai?.trim() || null,
-        row.nome_mae?.trim() || null,
-        row.endereco?.trim() || null,
-        row.cidade?.trim() || null,
+        sanitizeOptionalString(row.tipo_deficiencia),
+        sanitizeOptionalString(row.nome_pai),
+        sanitizeOptionalString(row.nome_mae),
+        sanitizeOptionalString(row.endereco),
+        sanitizeOptionalString(row.cidade),
         stateId,
         zipCode,
-        row.telefone.trim(),
-        row.whatsapp?.trim() || null,
+        sanitizeRequiredString(row.telefone),
+        sanitizeOptionalString(row.whatsapp),
         educationLevelId,
         courseId,
         educationalInstitutionId,
         Boolean(row.possui_oab ?? 0),
-        row.matricula?.trim() || null,
+        sanitizeOptionalString(row.matricula),
         semesterId,
         shiftId,
         availableShiftId,
         mapLanguageLevel(row.ingles),
         mapLanguageLevel(row.espanhol),
         mapLanguageLevel(row.frances),
-        row.outro_idioma?.trim() || null,
-        row.ImprovementCourse || null,
-        row.ITCourse || null,
+        sanitizeOptionalString(row.outro_idioma),
+        sanitizeOptionalString(row.ImprovementCourse),
+        sanitizeOptionalString(row.ITCourse),
         createdAt,
         updatedAt,
       ],
@@ -544,39 +575,39 @@ async function upsertStudent(row: LegacyStudentRow) {
         `,
         [
           userId,
-          row.notas,
-          row.nome_completo.trim(),
+          sanitizeOptionalString(row.notas),
+          sanitizeRequiredString(row.nome_completo),
           row.data_nascimento,
           cpfNumber,
-          row.rg.trim(),
-          row.orgao_expedidor?.trim() || null,
+          sanitizeRequiredString(row.rg),
+          sanitizeOptionalString(row.orgao_expedidor),
           Boolean(row.possui_cnh),
           genderId,
           maritalStatusId,
           Boolean(row.possui_deficiencia),
-          row.tipo_deficiencia?.trim() || null,
-          row.nome_pai?.trim() || null,
-          row.nome_mae?.trim() || null,
-          row.endereco?.trim() || null,
-          row.cidade?.trim() || null,
+          sanitizeOptionalString(row.tipo_deficiencia),
+          sanitizeOptionalString(row.nome_pai),
+          sanitizeOptionalString(row.nome_mae),
+          sanitizeOptionalString(row.endereco),
+          sanitizeOptionalString(row.cidade),
           stateId,
           zipCode,
-          row.telefone.trim(),
-          row.whatsapp?.trim() || null,
+          sanitizeRequiredString(row.telefone),
+          sanitizeOptionalString(row.whatsapp),
           educationLevelId,
           courseId,
           educationalInstitutionId,
           Boolean(row.possui_oab ?? 0),
-          row.matricula?.trim() || null,
+          sanitizeOptionalString(row.matricula),
           semesterId,
           shiftId,
           availableShiftId,
           mapLanguageLevel(row.ingles),
           mapLanguageLevel(row.espanhol),
           mapLanguageLevel(row.frances),
-          row.outro_idioma?.trim() || null,
-          row.ImprovementCourse || null,
-          row.ITCourse || null,
+          sanitizeOptionalString(row.outro_idioma),
+          sanitizeOptionalString(row.ImprovementCourse),
+          sanitizeOptionalString(row.ITCourse),
           updatedAt,
           existingRow.id,
         ],
