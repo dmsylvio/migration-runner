@@ -41,41 +41,72 @@ async function upsertUser(row: LegacyUserRow) {
   const createdAt = row.created_at ? new Date(row.created_at) : new Date();
   const updatedAt = row.updated_at ? new Date(row.updated_at) : createdAt;
 
-  // old_id no seu schema é text e NÃO é unique.
-  // Aqui eu recomendo guardar o PK numérico do legado em string, porque costuma ser o que outras tabelas referenciam.
-  // Se você quiser guardar o UUID legado (row.id) também, melhor criar uma coluna extra depois (legacy_uuid) ou uma tabela de mapeamento.
   const oldId = String(row.co_seq_usuario);
+  const normalizedEmail = row.email.trim().toLowerCase();
 
-  // password no novo é NOT NULL: precisamos garantir valor.
-  // Se ds_senha vier null (raro), use um placeholder e trate depois.
   const password = row.ds_senha
     ? hashSync(row.ds_senha, 12)
     : "MIGRATION_PASSWORD_MISSING";
 
-  await postgres.query(
-    `
-   INSERT INTO ${TARGET_TABLE} (id, old_id, email, name, avatar, password, role, created_at, updated_at)
-   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-   ON CONFLICT (email) DO UPDATE SET
-     old_id = EXCLUDED.old_id,
-     name = EXCLUDED.name,
-     avatar = EXCLUDED.avatar,
-     password = EXCLUDED.password,
-     role = EXCLUDED.role,
-     updated_at = GREATEST(${TARGET_TABLE}.updated_at, EXCLUDED.updated_at)
-   `,
-    [
-      uuidv7(), // ✅ gera id no runner
-      oldId,
-      row.email.trim().toLowerCase(),
-      row.name,
-      row.image,
-      password,
-      mapRole(row.role),
-      createdAt,
-      updatedAt,
-    ],
-  );
+  const insertOnly = env.USERS_INSERT_ONLY === true;
+
+  const params = [
+    uuidv7(),
+    oldId,
+    normalizedEmail,
+    row.name,
+    row.image,
+    password,
+    mapRole(row.role),
+    createdAt,
+    updatedAt,
+  ];
+
+  if (insertOnly) {
+    await postgres.query(
+      `
+      INSERT INTO ${TARGET_TABLE} (id, old_id, email, name, avatar, password, role, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      ON CONFLICT (email) DO NOTHING
+      `,
+      params,
+    );
+  } else {
+    const result = await postgres.query(
+      `
+      INSERT INTO ${TARGET_TABLE} (id, old_id, email, name, avatar, password, role, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      ON CONFLICT (email) DO NOTHING
+      RETURNING id
+      `,
+      params,
+    );
+    const inserted = result.rows && result.rows.length > 0;
+    if (!inserted) {
+      const disambiguatedEmail = `_${oldId}_${normalizedEmail}`;
+      await postgres.query(
+        `
+        INSERT INTO ${TARGET_TABLE} (id, old_id, email, name, avatar, password, role, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `,
+        [
+          uuidv7(),
+          oldId,
+          disambiguatedEmail,
+          row.name,
+          row.image,
+          password,
+          mapRole(row.role),
+          createdAt,
+          updatedAt,
+        ],
+      );
+      logger.info(
+        { entity: ENTITY, oldId, originalEmail: normalizedEmail, disambiguatedEmail },
+        "user email already existed; inserted with disambiguated email",
+      );
+    }
+  }
 
   if (row.role === "undefined") {
     logger.warn(
@@ -92,9 +123,27 @@ async function upsertUser(row: LegacyUserRow) {
 }
 
 async function seed(runId: number) {
-  logger.info({ entity: ENTITY }, "seed:start");
+  if (env.USERS_INSERT_ONLY) {
+    logger.info(
+      { entity: ENTITY },
+      "seed:start (insert only — skipping users that already exist by email)",
+    );
+  } else {
+    logger.info({ entity: ENTITY }, "seed:start");
+  }
 
+  // Continuar do último old_id já migrado no PostgreSQL (evita reprocessar tudo)
   let lastPk = 0;
+  const maxOldIdRes = await postgres.query(
+    `SELECT old_id FROM ${TARGET_TABLE} WHERE old_id ~ '^[0-9]+$' ORDER BY old_id::bigint DESC LIMIT 1`,
+  );
+  if (maxOldIdRes.rows?.length && maxOldIdRes.rows[0]) {
+    const maxOldId = parseInt((maxOldIdRes.rows[0] as { old_id: string }).old_id, 10);
+    if (!Number.isNaN(maxOldId)) {
+      lastPk = maxOldId;
+      logger.info({ entity: ENTITY, resumingFromOldId: lastPk }, "seed:resume from last old_id in postgres");
+    }
+  }
 
   while (true) {
     const [rows] = await mariadb.query<LegacyUserRow[]>(

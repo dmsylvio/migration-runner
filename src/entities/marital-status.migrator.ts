@@ -84,6 +84,16 @@ async function seed(runId: number) {
   logger.info({ entity: ENTITY }, "seed:start");
 
   let lastPk = 0;
+  const maxOldIdRes = await postgres.query(
+    `SELECT old_id FROM ${TARGET_TABLE} WHERE old_id ~ '^[0-9]+$' ORDER BY old_id::bigint DESC LIMIT 1`,
+  );
+  if (maxOldIdRes.rows?.length && maxOldIdRes.rows[0]) {
+    const maxOldId = parseInt((maxOldIdRes.rows[0] as { old_id: string }).old_id, 10);
+    if (!Number.isNaN(maxOldId)) {
+      lastPk = maxOldId;
+      logger.info({ entity: ENTITY, resumingFromOldId: lastPk }, "seed:resume from last old_id in postgres");
+    }
+  }
 
   while (true) {
     const [rows] = await mariadb.query<LegacyMaritalStatusRow[]>(

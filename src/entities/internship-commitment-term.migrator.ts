@@ -637,7 +637,17 @@ async function upsertInternshipCommitmentTerm(row: LegacyTermoRow) {
 async function seed(runId: number) {
   logger.info({ entity: ENTITY }, "seed:start");
 
-  let lastPk = "";
+  let lastPk = 0;
+  const maxOldIdRes = await postgres.query(
+    `SELECT old_id FROM ${TARGET_TABLE} WHERE old_id ~ '^[0-9]+$' ORDER BY old_id::bigint DESC LIMIT 1`,
+  );
+  if (maxOldIdRes.rows?.length && maxOldIdRes.rows[0]) {
+    const maxOldId = parseInt((maxOldIdRes.rows[0] as { old_id: string }).old_id, 10);
+    if (!Number.isNaN(maxOldId)) {
+      lastPk = maxOldId;
+      logger.info({ entity: ENTITY, resumingFromOldId: lastPk }, "seed:resume from last old_id in postgres");
+    }
+  }
 
   while (true) {
     const [rows] = await mariadb.query<LegacyTermoRow[]>(
@@ -650,8 +660,8 @@ async function seed(runId: number) {
              valor_estagio, taxa_pagamento, vale_transporte, prorrogacao1, prorrogacao2,
              prorrogacao3, rescisao, created_at, updated_at
       FROM tb_termo
-      WHERE id > :lastPk
-      ORDER BY id
+      WHERE co_seq_termo > :lastPk
+      ORDER BY co_seq_termo
       LIMIT :limit
       `,
       { lastPk, limit: env.BATCH_SIZE },
@@ -667,14 +677,14 @@ async function seed(runId: number) {
       await logError({
         runId,
         entity: ENTITY,
-        sourcePk: String(rows[0]?.id ?? ""),
+        sourcePk: String(rows[0]?.co_seq_termo ?? ""),
         error: e?.message ?? "seed failed",
         payload: rows[0],
       });
       throw e;
     }
 
-    lastPk = rows[rows.length - 1].id;
+    lastPk = rows[rows.length - 1].co_seq_termo;
     logger.info({ entity: ENTITY, lastPk, batch: rows.length }, "seed:batch");
   }
 

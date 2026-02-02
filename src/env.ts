@@ -14,6 +14,13 @@ const envSchema = z.object({
 
   BATCH_SIZE: z.coerce.number().int().positive().default(2000),
   LOG_LEVEL: z.string().default("info"),
+
+  /** When "1" or "true", users migrator only inserts missing users (ON CONFLICT DO NOTHING). */
+  USERS_INSERT_ONLY: z
+    .string()
+    .optional()
+    .default("")
+    .transform((v) => v === "1" || v === "true"),
 });
 
 export type Env = z.infer<typeof envSchema>;

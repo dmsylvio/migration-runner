@@ -251,19 +251,41 @@ async function upsertInternshipTerminationRequest(
 async function seed(runId: number) {
   logger.info({ entity: ENTITY }, "seed:start");
 
-  let lastPk = "";
+  let lastCreatedAt: string | null = null;
+  let lastId = "";
+  const lastRes = await postgres.query(
+    `SELECT created_at, old_id FROM ${TARGET_TABLE} ORDER BY created_at DESC NULLS LAST, old_id DESC LIMIT 1`,
+  );
+  if (lastRes.rows?.length && lastRes.rows[0]) {
+    const row = lastRes.rows[0] as { created_at: string; old_id: string };
+    lastCreatedAt = row.created_at;
+    lastId = row.old_id ?? "";
+    logger.info(
+      { entity: ENTITY, resumingFrom: { created_at: lastCreatedAt, old_id: lastId } },
+      "seed:resume from last row in postgres",
+    );
+  }
 
   while (true) {
     const [rows] = await mariadb.query<LegacyTerminationRequestRow[]>(
-      `
+      lastCreatedAt == null
+        ? `
       SELECT id, termo_id, empresa_id, estudante_id, data_rescisao, data_solicitacao,
              motivo_rescisao, status_solicitacao, created_at, updated_at
       FROM solicitar_rescisao_termos
-      WHERE id > :lastPk
-      ORDER BY id
+      ORDER BY COALESCE(created_at, data_solicitacao), id
+      LIMIT :limit
+      `
+        : `
+      SELECT id, termo_id, empresa_id, estudante_id, data_rescisao, data_solicitacao,
+             motivo_rescisao, status_solicitacao, created_at, updated_at
+      FROM solicitar_rescisao_termos
+      WHERE (COALESCE(created_at, data_solicitacao) > :lastCreatedAt)
+         OR (COALESCE(created_at, data_solicitacao) = :lastCreatedAt AND id > :lastId)
+      ORDER BY COALESCE(created_at, data_solicitacao), id
       LIMIT :limit
       `,
-      { lastPk, limit: env.BATCH_SIZE },
+      lastCreatedAt == null ? { limit: env.BATCH_SIZE } : { lastCreatedAt, lastId, limit: env.BATCH_SIZE },
     );
 
     if (rows.length === 0) break;
@@ -283,8 +305,10 @@ async function seed(runId: number) {
       throw e;
     }
 
-    lastPk = rows[rows.length - 1].id;
-    logger.info({ entity: ENTITY, lastPk, batch: rows.length }, "seed:batch");
+    const lastRow = rows[rows.length - 1];
+    lastCreatedAt = (lastRow.created_at ?? lastRow.data_solicitacao) as string;
+    lastId = lastRow.id;
+    logger.info({ entity: ENTITY, lastCreatedAt, lastId, batch: rows.length }, "seed:batch");
   }
 
   // Limpar caches após seed

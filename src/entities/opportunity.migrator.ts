@@ -495,21 +495,44 @@ async function upsertOpportunity(row: LegacyVagaRow) {
 async function seed(runId: number) {
   logger.info({ entity: ENTITY }, "seed:start");
 
-  let lastPk = "";
+  let lastCreatedAt: string | null = null;
+  let lastId = "";
+  const lastRes = await postgres.query(
+    `SELECT created_at, old_id FROM ${TARGET_TABLE} ORDER BY created_at DESC NULLS LAST, old_id DESC LIMIT 1`,
+  );
+  if (lastRes.rows?.length && lastRes.rows[0]) {
+    const row = lastRes.rows[0] as { created_at: string; old_id: string };
+    lastCreatedAt = row.created_at;
+    lastId = row.old_id ?? "";
+    logger.info(
+      { entity: ENTITY, resumingFrom: { created_at: lastCreatedAt, old_id: lastId } },
+      "seed:resume from last row in postgres",
+    );
+  }
 
   while (true) {
     const [rows] = await mariadb.query<LegacyVagaRow[]>(
-      `
+      lastCreatedAt == null
+        ? `
       SELECT id, codigo_vaga, status, empresa_id, supervisor, curso, semestre, sexo,
              qt_vaga, contato, ponto_referencia, dia_horario, entrevistador, nivel,
              deficiencia, bolsa, beneficio, exigencia, atividade, observacao,
              created_at, updated_at
       FROM vagas
-      WHERE id > :lastPk
-      ORDER BY id
+      ORDER BY created_at, id
+      LIMIT :limit
+      `
+        : `
+      SELECT id, codigo_vaga, status, empresa_id, supervisor, curso, semestre, sexo,
+             qt_vaga, contato, ponto_referencia, dia_horario, entrevistador, nivel,
+             deficiencia, bolsa, beneficio, exigencia, atividade, observacao,
+             created_at, updated_at
+      FROM vagas
+      WHERE (created_at > :lastCreatedAt) OR (created_at = :lastCreatedAt AND id > :lastId)
+      ORDER BY created_at, id
       LIMIT :limit
       `,
-      { lastPk, limit: env.BATCH_SIZE },
+      lastCreatedAt == null ? { limit: env.BATCH_SIZE } : { lastCreatedAt, lastId, limit: env.BATCH_SIZE },
     );
 
     if (rows.length === 0) break;
@@ -529,8 +552,10 @@ async function seed(runId: number) {
       throw e;
     }
 
-    lastPk = rows[rows.length - 1].id;
-    logger.info({ entity: ENTITY, lastPk, batch: rows.length }, "seed:batch");
+    const lastRow = rows[rows.length - 1];
+    lastCreatedAt = lastRow.created_at as string;
+    lastId = lastRow.id;
+    logger.info({ entity: ENTITY, lastCreatedAt, lastId, batch: rows.length }, "seed:batch");
   }
 
   // Limpar caches após seed
